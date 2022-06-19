@@ -1,0 +1,6 @@
+framework module Pods_FileTree {
+  umbrella header "Pods-FileTree-umbrella.h"
+
+  export *
+  module * { export * }
+}
