@@ -138,7 +138,7 @@ class MainViewController: UIViewController {
         addLongTap()
         restoreSignIn()
         self.navigationItem.rightBarButtonItems = [UIBarButtonItem(image: NavBarButtons.ButtonListGridImage.table.buttonImage, style:.plain, target: self, action: #selector(tapChangeGridList)), UIBarButtonItem(image: NavBarButtons.addFolder.buttonImage, style:.plain, target: self, action: #selector(tapAddFolder)), UIBarButtonItem(image: NavBarButtons.addFile.buttonImage, style:.plain, target: self, action: #selector(tapAddFile))]
-        if dataToPresent.isEmpty && isRoot {
+        if dataToPresent.isEmpty && isRoot && !isRedifineSheet {
             self.navigationItem.leftBarButtonItems = [UIBarButtonItem(image: NavBarButtons.account.buttonImage, style:.plain, target: self, action: #selector(tapAccount))]
             userDataManager.getPublicDataRequest(sheetID: spreadsheetId)
         } else {
@@ -147,12 +147,13 @@ class MainViewController: UIViewController {
     }
     
     override func viewWillAppear(_ animated: Bool) {
+        print(spreadsheetId)
         if spreadsheetId == "" {
             spreadsheetId = spreadsheetIdDefault
         }
         if isRedifineSheet {
             userDataManager.getPublicDataRequest(sheetID: spreadsheetId)
-            
+            isRedifineSheet = false
         }
     }
     
