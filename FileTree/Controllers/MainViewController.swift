@@ -115,6 +115,7 @@ class MainViewController: UIViewController {
     private lazy var dataToPresent = userNode
     private var userTap: Int = 0
     private var totalCountNodes: Int = 0
+    private var iterateCounter: Int = 0
     private var isRoot: Bool = true
     private var isUpdated: Bool = false
     private var parentItemIfDirectIsEmpty: String = ""
@@ -168,7 +169,11 @@ class MainViewController: UIViewController {
     }
     
     @objc func tapAddFolder() {
-        presentAlert(title: "Create new empty folder", alertMessage: "", withTextField: true)
+        if user?.authentication != nil {
+            presentAlert(title: "Create new empty folder", alertMessage: "", withTextField: true)
+        } else {
+            presentAlert(title: "Error", alertMessage: "Please, sign-in Google account for add new files.", withTextField: false)
+        }
     }
     
     @objc func tapAddFile() {
@@ -242,21 +247,25 @@ extension MainViewController {
     
     private func addLongTap() {
         let longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(longPressed))
-        longPressRecognizer.minimumPressDuration = 1
         self.view.addGestureRecognizer(longPressRecognizer)
     }
     
     @objc func longPressed(sender: UILongPressGestureRecognizer) {
-        if sender.state == UIGestureRecognizer.State.began {
-            let tapLocation = sender.location(in: collectView)
-            if let indexPath = collectView.indexPathForItem(at: tapLocation) {
-                if dataToPresent[indexPath.row].itemType == ItemType.directory.rawValue &&
-                    !dataToPresent[userTap].children.isEmpty {
-                    presentAlert(title: "You can't delete not empty directory", alertMessage: "", withTextField: false)
-                } else {
-                    self.presentAlertAskUserForDelete(itemToDelete: dataToPresent[indexPath.row].itemName, indexPath: indexPath)
+        if user?.authentication != nil {
+            if sender.state == UIGestureRecognizer.State.began {
+                let tapLocation = sender.location(in: collectView)
+                if let indexPath = collectView.indexPathForItem(at: tapLocation) {
+                    print(dataToPresent[indexPath.row].itemName, dataToPresent[indexPath.row].range)
+                    if dataToPresent[indexPath.row].itemType == ItemType.directory.rawValue &&
+                        !dataToPresent[userTap].children.isEmpty {
+                        presentAlert(title: "You can't delete not empty directory", alertMessage: "", withTextField: false)
+                    } else {
+                        self.presentAlertAskUserForDelete(itemToDelete: "\(dataToPresent[indexPath.row].itemName) -> \(dataToPresent[indexPath.row].range)", indexPath: indexPath)
+                    }
                 }
             }
+        } else {
+            presentAlert(title: "Error", alertMessage: "Please, sign-in Google account for add new files.", withTextField: false)
         }
     }
 }
@@ -287,10 +296,16 @@ extension MainViewController: UserDataManagerDelegate {
 
     func didUpdateData(_ dataManager: UserDataManager, data: Node) {
         isUpdated = false
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { 
             self.dataToPresent.append(data)
-            while !self.isUpdated {
-                self.updateUserNodeForAdd(data: data, parent: self.userNode)
+            self.totalCountNodes += 1
+            if self.isRoot {
+                self.userNode.append(data)
+                self.isUpdated = true
+            } else {
+                while !self.isUpdated {
+                    self.updateUserNodeForAdd(data: data, parent: self.userNode)
+                }
             }
             self.isEmptyLabel.isHidden = true
             self.collectView.reloadData()
@@ -330,20 +345,42 @@ extension MainViewController: UserDataManagerDelegate {
         isUpdated = false
         DispatchQueue.main.async {
             self.dataToPresent.removeAll(where: { $0.range == range })
-            self.collectView.reloadData()
+            self.totalCountNodes -= 1
+            self.iterateCounter = self.totalCountNodes - range
             while !self.isUpdated {
-                self.updateUserNodeForDelete(range: range, parent: &self.userNode)
+                self.deleteNodeFromUserNode(range: range, parent: &self.userNode)
             }
+            
+            while self.iterateCounter > 0 {
+                self.updateUserNodeRange(range: range, parent: self.userNode)
+            }
+            self.iterateCounter = self.totalCountNodes - range
+            
+            while self.iterateCounter > 0 {
+                self.updateUserNodeRange(range: range, parent: self.dataToPresent)
+            }
+            self.collectView.reloadData()
         }
     }
     
-    private func updateUserNodeForDelete(range: Int, parent: inout [Node]) {
+    private func deleteNodeFromUserNode(range: Int, parent: inout [Node]) {
         for item in parent {
             if item.range == range {
                 parent.removeAll(where: { $0.range == range })
                 isUpdated = true
             }
-            updateUserNodeForDelete(range: range, parent: &item.children)
+            deleteNodeFromUserNode(range: range, parent: &item.children)
+        }
+    }
+    
+    private func updateUserNodeRange(range: Int, parent: [Node]) {
+        for item in parent {
+            if item.range > range && iterateCounter != 0 {
+//                item.range -= 1
+                print(item.itemName, "--->", item.range)
+            }
+            iterateCounter -= 1
+            updateUserNodeRange(range: range, parent: item.children)
         }
     }
 
@@ -356,7 +393,7 @@ extension MainViewController: UserDataManagerDelegate {
     
 extension MainViewController {
     
-    func presentAlert(title: String, alertMessage: String, withTextField: Bool) {
+    private func presentAlert(title: String, alertMessage: String, withTextField: Bool) {
         let alertController = UIAlertController(title: title, message: alertMessage, preferredStyle: .alert)
         
         if withTextField {
@@ -381,7 +418,7 @@ extension MainViewController {
         self.present(alertController, animated: true, completion:nil)
     }
     
-    func presentAlertAskUserForDelete(itemToDelete: String, indexPath: IndexPath) {
+    private func presentAlertAskUserForDelete(itemToDelete: String, indexPath: IndexPath) {
         let alertController = UIAlertController(title: title, message: "Are you sure you want to delete \(itemToDelete)", preferredStyle: .alert)
         let OKAction = UIAlertAction(title: "Yes", style: .default, handler: { (action) -> Void in
             self.userDataManager.deleteDataRequest(range: self.dataToPresent[indexPath.row].range, sheetID: self.spreadsheetId)

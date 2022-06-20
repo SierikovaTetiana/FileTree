@@ -25,7 +25,7 @@ class UserDataManager {
     private let service = GTLRSheetsService()
     private let key = Secrets().keyAPI
     private let range = "Sheet1!A1:Z1000"
-    private var itemInRange: Int = 0
+    private var itemInRange: Int = 1
     private var totalCount: Int = 0
     private var userNode = [Node]()
     private var testNode = [Node]()
@@ -149,8 +149,8 @@ class UserDataManager {
         let gridRange = GTLRSheets_GridRange.init()
         toDelete.range = gridRange
         gridRange.sheetId = 0
-        gridRange.startRowIndex = range as NSNumber
-        gridRange.endRowIndex = (range + 1) as NSNumber
+        gridRange.startRowIndex = (range - 1) as NSNumber
+        gridRange.endRowIndex = range as NSNumber
         toDelete.shiftDimension = kGTLRSheets_DeleteRangeRequest_ShiftDimension_Rows
         
         let batchUpdate = GTLRSheets_BatchUpdateSpreadsheetRequest.init()
