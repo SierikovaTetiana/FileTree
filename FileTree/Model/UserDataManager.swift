@@ -12,8 +12,9 @@ import GoogleAPIClientForREST
 import Security
 
 protocol UserDataManagerDelegate {
-    func didGetData(_ dataManager: UserDataManager, data: [Node])
+    func didGetData(_ dataManager: UserDataManager, data: [Node], range: Int)
     func didUpdateData(_ dataManager: UserDataManager, data: Node)
+    func didDeleteData(_ dataManager: UserDataManager, range: Int)
     func didFailWithError(error: Error)
 }
 
@@ -24,6 +25,8 @@ class UserDataManager {
     private let service = GTLRSheetsService()
     private let key = Secrets().keyAPI
     private let range = "Sheet1!A1:Z1000"
+    private var itemInRange: Int = 0
+    private var totalCount: Int = 0
     private var userNode = [Node]()
     private var testNode = [Node]()
     
@@ -40,7 +43,7 @@ class UserDataManager {
                 }
                 if let safeData = data {
                     if let userData = self.parseJSON(safeData) {
-                        self.delegate?.didGetData(self, data: userData)
+                        self.delegate?.didGetData(self, data: userData, range: self.totalCount)
                     }
                 }
             }
@@ -55,8 +58,10 @@ class UserDataManager {
         do {
             let json = try decoder.decode(SearchData.self , from: userData)
             for item in json.values {
-                testNode.append(Node(itemUUID: item[0], parentItemUUID: item[1], itemType: item[2], itemName: item[3]))
+                testNode.append(Node(itemUUID: item[0], parentItemUUID: item[1], itemType: item[2], itemName: item[3], range: itemInRange))
+                itemInRange += 1
             }
+            totalCount = testNode.count
             for item in testNode {
                 if item.parentItemUUID == "" {
                     userNode.append(item)
@@ -90,7 +95,7 @@ class UserDataManager {
     
     // MARK: - Handle add data to Google Spreadsheets using OAuth 2.0 (autorize request) - sign-in Google acc
     
-    func updateDataRequest(node: Node, collectView: UICollectionView, sheetID: String) {
+    func updateDataRequest(node: Node, sheetID: String) {
         GIDSignIn.sharedInstance.currentUser?.authentication.do { authentication, error in
             if error != nil {
                 self.delegate?.didFailWithError(error: error!)
@@ -98,14 +103,14 @@ class UserDataManager {
             }
             if let authentication = authentication {
                 self.service.authorizer = authentication.fetcherAuthorizer()
-                self.updateSheets(node: node, collectView: collectView, sheetID: sheetID)
+                self.updateSheets(node: node, sheetID: sheetID)
             } else {
                 self.delegate?.didFailWithError(error: "Can't authenticate user" as! Error)
             }
         }
     }
     
-    private func updateSheets(node: Node, collectView: UICollectionView, sheetID: String) {
+    private func updateSheets(node: Node, sheetID: String) {
         let valueRange = GTLRSheets_ValueRange()
         valueRange.majorDimension = "ROWS"
         valueRange.range = range
@@ -120,4 +125,48 @@ class UserDataManager {
             }
         }
     }
+    
+    
+    // MARK: - Handle delete data from Google Spreadsheets using OAuth 2.0 (autorize request) - sign-in Google acc
+    
+    func deleteDataRequest(range: Int, sheetID: String) {
+        GIDSignIn.sharedInstance.currentUser?.authentication.do { authentication, error in
+            if error != nil {
+                self.delegate?.didFailWithError(error: error!)
+                return
+            }
+            if let authentication = authentication {
+                self.service.authorizer = authentication.fetcherAuthorizer()
+                self.deleteDataFromSheet(range: range, sheetID: sheetID)
+            } else {
+                self.delegate?.didFailWithError(error: "Can't authenticate user" as! Error)
+            }
+        }
+    }
+    
+    private func deleteDataFromSheet(range: Int, sheetID: String) {
+        let toDelete = GTLRSheets_DeleteRangeRequest.init()
+        let gridRange = GTLRSheets_GridRange.init()
+        toDelete.range = gridRange
+        gridRange.sheetId = 0
+        gridRange.startRowIndex = range as NSNumber
+        gridRange.endRowIndex = (range + 1) as NSNumber
+        toDelete.shiftDimension = kGTLRSheets_DeleteRangeRequest_ShiftDimension_Rows
+        
+        let batchUpdate = GTLRSheets_BatchUpdateSpreadsheetRequest.init()
+        let request = GTLRSheets_Request.init()
+        request.deleteRange = toDelete
+        batchUpdate.requests = [request]
+        
+        let deleteQuery = GTLRSheetsQuery_SpreadsheetsBatchUpdate.query(withObject: batchUpdate, spreadsheetId: sheetID)
+        service.executeQuery(deleteQuery) { (ticket, result, error) in
+            if (error != nil) {
+                self.delegate?.didFailWithError(error: error!)
+                print(error!)
+            } else {
+                self.delegate?.didDeleteData(self, range: range)
+            }
+        }
+    }
 }
+

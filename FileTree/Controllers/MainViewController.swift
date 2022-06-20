@@ -103,8 +103,8 @@ class MainViewController: UIViewController {
         return collectionFlowLayout
     }()
     
-//    private let spreadsheetIdDefault = "1vwFQ6PxiCOiXf41QLRrzy6yNI5M9Fg63XT_4X7_uVKs"
-    private let spreadsheetIdDefault = "1oL1cByCpMXJMz6ifaKDiK6bZC2xE2HkRA4jwHRtRuj8"
+    private let spreadsheetIdDefault = "1vwFQ6PxiCOiXf41QLRrzy6yNI5M9Fg63XT_4X7_uVKs"
+//    private let spreadsheetIdDefault = "1oL1cByCpMXJMz6ifaKDiK6bZC2xE2HkRA4jwHRtRuj8"
     lazy var spreadsheetId = spreadsheetIdDefault
     
     var user: GIDGoogleUser? = nil
@@ -114,6 +114,7 @@ class MainViewController: UIViewController {
     private var userNode = [Node]()
     private lazy var dataToPresent = userNode
     private var userTap: Int = 0
+    private var totalCountNodes: Int = 0
     private var isRoot: Bool = true
     private var isUpdated: Bool = false
     private var parentItemIfDirectIsEmpty: String = ""
@@ -131,8 +132,7 @@ class MainViewController: UIViewController {
         collectView.register(Cell.self, forCellWithReuseIdentifier: Cell.identifier)
         collectView.collectionViewLayout = listCVLayout
         navigationItem.backBarButtonItem = backBarButtonItem
-        let longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(longPressed))
-        self.view.addGestureRecognizer(longPressRecognizer)
+        addLongTap()
         restoreSignIn()
         self.navigationItem.rightBarButtonItems = [UIBarButtonItem(image: NavBarButtons.ButtonListGridImage.table.buttonImage, style:.plain, target: self, action: #selector(tapChangeGridList)), UIBarButtonItem(image: NavBarButtons.addFolder.buttonImage, style:.plain, target: self, action: #selector(tapAddFolder)), UIBarButtonItem(image: NavBarButtons.addFile.buttonImage, style:.plain, target: self, action: #selector(tapAddFile))]
         if dataToPresent.isEmpty && isRoot {
@@ -216,7 +216,6 @@ extension MainViewController: UICollectionViewDelegate, UICollectionViewDataSour
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        print(dataToPresent[indexPath.row].itemName)
         userTap = indexPath.row
         if dataToPresent[userTap].itemType == ItemType.directory.rawValue {
             let viewController = MainViewController()
@@ -230,6 +229,7 @@ extension MainViewController: UICollectionViewDelegate, UICollectionViewDataSour
             viewController.userNode = userNode
             viewController.titleOfScreen = dataToPresent[userTap].itemName
             viewController.userTap = userTap
+            viewController.totalCountNodes = totalCountNodes
             viewController.isRoot = false
             self.navigationController?.pushViewController(viewController, animated: true)
         }
@@ -240,11 +240,26 @@ extension MainViewController: UICollectionViewDelegate, UICollectionViewDataSour
 
 extension MainViewController {
     
+    private func addLongTap() {
+        let longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(longPressed))
+        longPressRecognizer.minimumPressDuration = 1
+        self.view.addGestureRecognizer(longPressRecognizer)
+    }
+    
     @objc func longPressed(sender: UILongPressGestureRecognizer) {
-        print("longpressed")
+        if sender.state == UIGestureRecognizer.State.began {
+            let tapLocation = sender.location(in: collectView)
+            if let indexPath = collectView.indexPathForItem(at: tapLocation) {
+                if dataToPresent[indexPath.row].itemType == ItemType.directory.rawValue &&
+                    !dataToPresent[userTap].children.isEmpty {
+                    presentAlert(title: "You can't delete not empty directory", alertMessage: "", withTextField: false)
+                } else {
+                    self.presentAlertAskUserForDelete(itemToDelete: dataToPresent[indexPath.row].itemName, indexPath: indexPath)
+                }
+            }
+        }
     }
 }
-
 
 // MARK: - Document Picker Delegate
 
@@ -261,45 +276,47 @@ extension MainViewController: UIDocumentPickerDelegate {
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
         let generatorItemUUID = SecCreateSharedWebCredentialPassword() as String?
         guard let randomItemUUID = generatorItemUUID else { return }
-        userDataManager.updateDataRequest(node: Node(itemUUID: randomItemUUID, parentItemUUID: self.parentItem(), itemType: "\(ItemType.file.rawValue)", itemName: urls[0].lastPathComponent), collectView: collectView, sheetID: spreadsheetId)
+        let itemInRange = self.totalCountNodes + 1
+        userDataManager.updateDataRequest(node: Node(itemUUID: randomItemUUID, parentItemUUID: self.parentItem(), itemType: "\(ItemType.file.rawValue)", itemName: urls[0].lastPathComponent, range: itemInRange), sheetID: spreadsheetId)
     }
 }
 
 // MARK: - UserDataManagerDelegate
 
 extension MainViewController: UserDataManagerDelegate {
-    
+
     func didUpdateData(_ dataManager: UserDataManager, data: Node) {
         isUpdated = false
         DispatchQueue.main.async {
             self.dataToPresent.append(data)
             while !self.isUpdated {
-                self.updateUserNode(data: data, parent: self.userNode)
+                self.updateUserNodeForAdd(data: data, parent: self.userNode)
             }
             self.isEmptyLabel.isHidden = true
             self.collectView.reloadData()
         }
     }
     
-    func updateUserNode(data: Node, parent: [Node]) {
+    private func updateUserNodeForAdd(data: Node, parent: [Node]) {
         for item in parent {
             if item.itemUUID == self.parentItem() && !isUpdated {
                 item.children.append(data)
                 isUpdated = true
             }
-            updateUserNode(data: data, parent: item.children)
+            updateUserNodeForAdd(data: data, parent: item.children)
         }
     }
     
-    func didGetData(_ dataManager: UserDataManager, data: [Node]) {
+    func didGetData(_ dataManager: UserDataManager, data: [Node], range: Int) {
         DispatchQueue.main.async {
             self.userNode = data
+            self.totalCountNodes = range
             self.dataToPresent = data
             self.collectView.reloadData()
         }
     }
     
-    func parentItem() -> String {
+    private func parentItem() -> String {
         var parent = ""
         if self.dataToPresent.isEmpty {
             parent = self.parentItemIfDirectIsEmpty
@@ -309,9 +326,35 @@ extension MainViewController: UserDataManagerDelegate {
         return parent
     }
     
+    func didDeleteData(_ dataManager: UserDataManager, range: Int) {
+        isUpdated = false
+        DispatchQueue.main.async {
+            self.dataToPresent.removeAll(where: { $0.range == range })
+            self.collectView.reloadData()
+            while !self.isUpdated {
+                self.updateUserNodeForDelete(range: range, parent: &self.userNode)
+            }
+        }
+    }
+    
+    private func updateUserNodeForDelete(range: Int, parent: inout [Node]) {
+        for item in parent {
+            if item.range == range {
+                parent.removeAll(where: { $0.range == range })
+                isUpdated = true
+            }
+            updateUserNodeForDelete(range: range, parent: &item.children)
+        }
+    }
+
     func didFailWithError(error: Error) {
         self.presentAlert(title: "Error", alertMessage: error.localizedDescription, withTextField: false)
     }
+}
+    
+    // MARK: - Present Alerts
+    
+extension MainViewController {
     
     func presentAlert(title: String, alertMessage: String, withTextField: Bool) {
         let alertController = UIAlertController(title: title, message: alertMessage, preferredStyle: .alert)
@@ -324,7 +367,8 @@ extension MainViewController: UserDataManagerDelegate {
                 guard let textFields = alertController.textFields else { return }
                 guard let safeText = textFields[0].text else { return }
                 guard let randomItemUUID = generatorItemUUID else { return }
-                self.userDataManager.updateDataRequest(node: Node(itemUUID: randomItemUUID, parentItemUUID: self.parentItem(), itemType: ItemType.directory.rawValue, itemName: safeText), collectView: self.collectView, sheetID: self.spreadsheetId)
+                let itemInRange = self.totalCountNodes + 1
+                self.userDataManager.updateDataRequest(node: Node(itemUUID: randomItemUUID, parentItemUUID: self.parentItem(), itemType: ItemType.directory.rawValue, itemName: safeText, range: itemInRange), sheetID: self.spreadsheetId)
             })
             let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
             alertController.addAction(OKAction)
@@ -334,6 +378,17 @@ extension MainViewController: UserDataManagerDelegate {
             let OKAction = UIAlertAction(title: "OK", style: .default)
             alertController.addAction(OKAction)
         }
+        self.present(alertController, animated: true, completion:nil)
+    }
+    
+    func presentAlertAskUserForDelete(itemToDelete: String, indexPath: IndexPath) {
+        let alertController = UIAlertController(title: title, message: "Are you sure you want to delete \(itemToDelete)", preferredStyle: .alert)
+        let OKAction = UIAlertAction(title: "Yes", style: .default, handler: { (action) -> Void in
+            self.userDataManager.deleteDataRequest(range: self.dataToPresent[indexPath.row].range, sheetID: self.spreadsheetId)
+        })
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
+        alertController.addAction(OKAction)
+        alertController.addAction(cancelAction)
         self.present(alertController, animated: true, completion:nil)
     }
 }

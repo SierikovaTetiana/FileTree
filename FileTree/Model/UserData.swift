@@ -13,13 +13,15 @@ class Node {
     var itemType : String
     var itemName : String
     var children: [Node] = []
+    var range: Int
     weak var parent: Node?
     
-    init(itemUUID: String? = nil, parentItemUUID: String? = nil, itemType: String? = nil, itemName: String? = nil, children: [Node] = []) {
+    init(itemUUID: String? = nil, parentItemUUID: String? = nil, itemType: String? = nil, itemName: String? = nil, range: Int, children: [Node] = []) {
         self.itemUUID = itemUUID ?? ""
         self.parentItemUUID = parentItemUUID ?? ""
         self.itemType = itemType ?? ""
         self.itemName = itemName ?? ""
+        self.range = range
         self.children = children
         
         for child in self.children {
