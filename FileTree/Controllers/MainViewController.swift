@@ -107,15 +107,17 @@ class MainViewController: UIViewController {
 //    private let spreadsheetIdDefault = "1oL1cByCpMXJMz6ifaKDiK6bZC2xE2HkRA4jwHRtRuj8"
     lazy var spreadsheetId = spreadsheetIdDefault
     
+    var isRedifineSheet: Bool = false
     var user: GIDGoogleUser? = nil
     private var userDataManager = UserDataManager()
     
     private var isListView: Bool = true
     private var userNode = [Node]()
-    private lazy var dataToPresent = userNode
+    private lazy var dataToPresent = [Node]() 
     private var userTap: Int = 0
     private var totalCountNodes: Int = 0
     private var iterateCounter: Int = 0
+    private var tempCounter = [String]()
     private var isRoot: Bool = true
     private var isUpdated: Bool = false
     private var parentItemIfDirectIsEmpty: String = ""
@@ -138,7 +140,7 @@ class MainViewController: UIViewController {
         self.navigationItem.rightBarButtonItems = [UIBarButtonItem(image: NavBarButtons.ButtonListGridImage.table.buttonImage, style:.plain, target: self, action: #selector(tapChangeGridList)), UIBarButtonItem(image: NavBarButtons.addFolder.buttonImage, style:.plain, target: self, action: #selector(tapAddFolder)), UIBarButtonItem(image: NavBarButtons.addFile.buttonImage, style:.plain, target: self, action: #selector(tapAddFile))]
         if dataToPresent.isEmpty && isRoot {
             self.navigationItem.leftBarButtonItems = [UIBarButtonItem(image: NavBarButtons.account.buttonImage, style:.plain, target: self, action: #selector(tapAccount))]
-            userDataManager.getPublicDataRequest(collectView: collectView, sheetID: spreadsheetId)
+            userDataManager.getPublicDataRequest(sheetID: spreadsheetId)
         } else {
             self.title = titleOfScreen
         }
@@ -147,6 +149,10 @@ class MainViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         if spreadsheetId == "" {
             spreadsheetId = spreadsheetIdDefault
+        }
+        if isRedifineSheet {
+            userDataManager.getPublicDataRequest(sheetID: spreadsheetId)
+            
         }
     }
     
@@ -255,7 +261,6 @@ extension MainViewController {
             if sender.state == UIGestureRecognizer.State.began {
                 let tapLocation = sender.location(in: collectView)
                 if let indexPath = collectView.indexPathForItem(at: tapLocation) {
-                    print(dataToPresent[indexPath.row].itemName, dataToPresent[indexPath.row].range)
                     if dataToPresent[indexPath.row].itemType == ItemType.directory.rawValue &&
                         !dataToPresent[userTap].children.isEmpty {
                         presentAlert(title: "You can't delete not empty directory", alertMessage: "", withTextField: false)
@@ -293,10 +298,10 @@ extension MainViewController: UIDocumentPickerDelegate {
 // MARK: - UserDataManagerDelegate
 
 extension MainViewController: UserDataManagerDelegate {
-
+    
     func didUpdateData(_ dataManager: UserDataManager, data: Node) {
         isUpdated = false
-        DispatchQueue.main.async { 
+        DispatchQueue.main.async {
             self.dataToPresent.append(data)
             self.totalCountNodes += 1
             if self.isRoot {
@@ -343,22 +348,18 @@ extension MainViewController: UserDataManagerDelegate {
     
     func didDeleteData(_ dataManager: UserDataManager, range: Int) {
         isUpdated = false
+        
+        self.dataToPresent.removeAll(where: { $0.range == range })
+        self.totalCountNodes -= 1
+        
+        while !self.isUpdated {
+            self.deleteNodeFromUserNode(range: range, parent: &self.userNode)
+        }
+        
+        self.iterateCounter = self.totalCountNodes - range
+        self.updateUserNodeRange(range: range, parent: self.userNode)
+        self.tempCounter.removeAll()
         DispatchQueue.main.async {
-            self.dataToPresent.removeAll(where: { $0.range == range })
-            self.totalCountNodes -= 1
-            self.iterateCounter = self.totalCountNodes - range
-            while !self.isUpdated {
-                self.deleteNodeFromUserNode(range: range, parent: &self.userNode)
-            }
-            
-            while self.iterateCounter > 0 {
-                self.updateUserNodeRange(range: range, parent: self.userNode)
-            }
-            self.iterateCounter = self.totalCountNodes - range
-            
-            while self.iterateCounter > 0 {
-                self.updateUserNodeRange(range: range, parent: self.dataToPresent)
-            }
             self.collectView.reloadData()
         }
     }
@@ -374,16 +375,18 @@ extension MainViewController: UserDataManagerDelegate {
     }
     
     private func updateUserNodeRange(range: Int, parent: [Node]) {
-        for item in parent {
-            if item.range > range && iterateCounter != 0 {
-//                item.range -= 1
-                print(item.itemName, "--->", item.range)
+        if iterateCounter != 0 {
+            for item in parent {
+                if item.range > range && iterateCounter != 0 && !tempCounter.contains(item.itemUUID) {
+                    item.range -= 1
+                    tempCounter.append(item.itemUUID)
+                    iterateCounter -= 1
+                }
+                updateUserNodeRange(range: range, parent: item.children)
             }
-            iterateCounter -= 1
-            updateUserNodeRange(range: range, parent: item.children)
         }
     }
-
+    
     func didFailWithError(error: Error) {
         self.presentAlert(title: "Error", alertMessage: error.localizedDescription, withTextField: false)
     }

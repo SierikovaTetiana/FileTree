@@ -20,6 +20,17 @@ protocol UserDataManagerDelegate {
 
 class UserDataManager {
     
+    enum Errors: Error {
+        case urlFail
+        case auth
+        var localizedDescription: String {
+            switch self {
+            case .urlFail: return "Please, enter correct SheetID"
+            case .auth: return "Can't authenticate user"
+            }
+        }
+    }
+    
     var delegate: UserDataManagerDelegate?
     static let userInstance = UserDataManager()
     private let service = GTLRSheetsService()
@@ -32,7 +43,7 @@ class UserDataManager {
     
     // MARK: - Handle get data from Google Spreadsheets using API key(unautorize request only for reading public data)
     
-    func getPublicDataRequest(collectView: UICollectionView, sheetID: String) {
+    func getPublicDataRequest(sheetID: String) {
         let url = NSURL(string: "https://sheets.googleapis.com/v4/spreadsheets/\(sheetID)/values/\(range)?key=\(key)")
         if let safeUrl = url {
             let session = URLSession(configuration: .default)
@@ -49,7 +60,7 @@ class UserDataManager {
             }
             task.resume()
         } else {
-            self.delegate?.didFailWithError(error: "Please, enter correct SheetID" as! Error)
+            self.delegate?.didFailWithError(error: Errors.urlFail)
         }
     }
     
@@ -105,7 +116,7 @@ class UserDataManager {
                 self.service.authorizer = authentication.fetcherAuthorizer()
                 self.updateSheets(node: node, sheetID: sheetID)
             } else {
-                self.delegate?.didFailWithError(error: "Can't authenticate user" as! Error)
+                self.delegate?.didFailWithError(error: Errors.auth)
             }
         }
     }
@@ -139,7 +150,7 @@ class UserDataManager {
                 self.service.authorizer = authentication.fetcherAuthorizer()
                 self.deleteDataFromSheet(range: range, sheetID: sheetID)
             } else {
-                self.delegate?.didFailWithError(error: "Can't authenticate user" as! Error)
+                self.delegate?.didFailWithError(error: Errors.auth)
             }
         }
     }

@@ -60,7 +60,7 @@ class AccountViewController: UIViewController {
     
     private lazy var sheetID: UITextField = {
         let textField = UITextField()
-        textField.placeholder = " Enter your personal token"
+        textField.placeholder = " Enter spreadsheet ID"
         textField.borderStyle = UITextField.BorderStyle.roundedRect
         textField.translatesAutoresizingMaskIntoConstraints = false
         return textField
@@ -204,8 +204,8 @@ class AccountViewController: UIViewController {
             let viewController = MainViewController()
             viewController.spreadsheetId = sheetID.text!
             viewController.user = currentUser
+            viewController.isRedifineSheet = true
             self.navigationController?.pushViewController(viewController, animated: true)
-            print("Submit tapped")
         }
     }
     
