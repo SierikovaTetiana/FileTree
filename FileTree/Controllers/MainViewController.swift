@@ -147,7 +147,6 @@ class MainViewController: UIViewController {
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        print(spreadsheetId)
         if spreadsheetId == "" {
             spreadsheetId = spreadsheetIdDefault
         }
@@ -155,6 +154,15 @@ class MainViewController: UIViewController {
             userDataManager.getPublicDataRequest(sheetID: spreadsheetId)
             isRedifineSheet = false
         }
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        guard let navC = navigationController else { return }
+        if navC.viewControllers.firstIndex(of: self) != nil { return }
+        guard let destVC = navC.viewControllers.last as? MainViewController else { return }
+        destVC.totalCountNodes = totalCountNodes
+        destVC.userNode = userNode
+        destVC.userTap = userTap
     }
     
     override func viewWillLayoutSubviews() {

@@ -173,7 +173,6 @@ class UserDataManager {
         service.executeQuery(deleteQuery) { (ticket, result, error) in
             if (error != nil) {
                 self.delegate?.didFailWithError(error: error!)
-                print(error!)
             } else {
                 self.delegate?.didDeleteData(self, range: range)
             }
