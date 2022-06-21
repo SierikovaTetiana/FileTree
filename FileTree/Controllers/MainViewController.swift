@@ -239,10 +239,10 @@ extension MainViewController: UICollectionViewDelegate, UICollectionViewDataSour
             let viewController = MainViewController()
             if dataToPresent[userTap].children.count == 0 {
                 viewController.isEmptyLabel.isHidden = false
-                viewController.parentItemIfDirectIsEmpty = dataToPresent[userTap].itemUUID
             } else {
                 isEmptyLabel.isHidden = true
             }
+            viewController.parentItemIfDirectIsEmpty = dataToPresent[userTap].itemUUID
             viewController.dataToPresent = dataToPresent[userTap].children
             viewController.userNode = userNode
             viewController.titleOfScreen = dataToPresent[userTap].itemName
@@ -346,13 +346,7 @@ extension MainViewController: UserDataManagerDelegate {
     }
     
     private func parentItem() -> String {
-        var parent = ""
-        if self.dataToPresent.isEmpty {
-            parent = self.parentItemIfDirectIsEmpty
-        } else {
-            parent = self.dataToPresent[0].parentItemUUID
-        }
-        return parent
+        return dataToPresent.isEmpty ? parentItemIfDirectIsEmpty : dataToPresent[0].parentItemUUID
     }
     
     func didDeleteData(_ dataManager: UserDataManager, range: Int) {
