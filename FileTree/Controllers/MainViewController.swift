@@ -103,8 +103,8 @@ class MainViewController: UIViewController {
         return collectionView
     }()
     
-//    private let spreadsheetIdDefault = "1vwFQ6PxiCOiXf41QLRrzy6yNI5M9Fg63XT_4X7_uVKs"
-        private let spreadsheetIdDefault = "1oL1cByCpMXJMz6ifaKDiK6bZC2xE2HkRA4jwHRtRuj8"
+    private let spreadsheetIdDefault = "1vwFQ6PxiCOiXf41QLRrzy6yNI5M9Fg63XT_4X7_uVKs"
+//        private let spreadsheetIdDefault = "1oL1cByCpMXJMz6ifaKDiK6bZC2xE2HkRA4jwHRtRuj8"
     var isRedifineSheet: Bool = false
     var user: GIDGoogleUser? = nil
     lazy var spreadsheetId = spreadsheetIdDefault
@@ -321,6 +321,7 @@ extension MainViewController: UserDataManagerDelegate {
             }
             self.isEmptyLabel.isHidden = true
             self.collectView.reloadData()
+            self.isEmptyLabel.isHidden = self.dataToPresent.isEmpty ? false : true
         }
     }
     
@@ -340,6 +341,7 @@ extension MainViewController: UserDataManagerDelegate {
             self.totalCountNodes = range
             self.dataToPresent = data
             self.collectView.reloadData()
+            self.isEmptyLabel.isHidden = self.dataToPresent.isEmpty ? false : true
         }
     }
     
@@ -363,11 +365,12 @@ extension MainViewController: UserDataManagerDelegate {
             self.deleteNodeFromUserNode(range: range, parent: &self.userNode)
         }
         
-        self.iterateCounter = self.totalCountNodes - range
+        self.iterateCounter = (self.totalCountNodes + 1) - range
         self.updateUserNodeRange(range: range, parent: self.userNode)
         self.tempCounter.removeAll()
         DispatchQueue.main.async {
             self.collectView.reloadData()
+            self.isEmptyLabel.isHidden = self.dataToPresent.isEmpty ? false : true
         }
     }
     
