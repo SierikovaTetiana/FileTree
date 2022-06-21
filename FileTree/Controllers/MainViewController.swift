@@ -13,8 +13,8 @@ import UniformTypeIdentifiers
 import Security
 
 class MainViewController: UIViewController {
-
-    enum NavBarButtons: String, CaseIterable {
+    
+    private enum NavBarButtons: String, CaseIterable {
         case account
         case addFile
         case addFolder
@@ -38,7 +38,7 @@ class MainViewController: UIViewController {
         }
     }
     
-    enum FileDirectory: String, CaseIterable {
+    private enum FileDirectory: String, CaseIterable {
         case file
         case directory
         var image: UIImage {
@@ -54,6 +54,12 @@ class MainViewController: UIViewController {
         case file = "f"
     }
     
+    private let backBarButtonItem: UIBarButtonItem = {
+        let backBarButtonItem = UIBarButtonItem(title: "Back", style: .plain, target: nil, action: nil)
+        backBarButtonItem.tintColor = .black
+        return backBarButtonItem
+    }()
+    
     private lazy var isEmptyLabel: UILabel = {
         let label = UILabel()
         label.text = "Directory is Empty"
@@ -64,20 +70,6 @@ class MainViewController: UIViewController {
         label.backgroundColor = .white
         label.isHidden = true
         return label
-    }()
-    
-    private let backBarButtonItem: UIBarButtonItem = {
-        let backBarButtonItem = UIBarButtonItem(title: "Back", style: .plain, target: nil, action: nil)
-        backBarButtonItem.tintColor = .black
-        return backBarButtonItem
-    }()
-    
-    private var collectView: UICollectionView = {
-        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout.init())
-        collectionView.showsHorizontalScrollIndicator = false
-        collectionView.translatesAutoresizingMaskIntoConstraints = false
-        collectionView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
-        return collectionView
     }()
     
     private lazy var listCVLayout: UICollectionViewFlowLayout = {
@@ -103,17 +95,23 @@ class MainViewController: UIViewController {
         return collectionFlowLayout
     }()
     
-    private let spreadsheetIdDefault = "1vwFQ6PxiCOiXf41QLRrzy6yNI5M9Fg63XT_4X7_uVKs"
-//    private let spreadsheetIdDefault = "1oL1cByCpMXJMz6ifaKDiK6bZC2xE2HkRA4jwHRtRuj8"
-    lazy var spreadsheetId = spreadsheetIdDefault
+    private var collectView: UICollectionView = {
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout.init())
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        return collectionView
+    }()
     
+    private let spreadsheetIdDefault = "1vwFQ6PxiCOiXf41QLRrzy6yNI5M9Fg63XT_4X7_uVKs"
+    //    private let spreadsheetIdDefault = "1oL1cByCpMXJMz6ifaKDiK6bZC2xE2HkRA4jwHRtRuj8"
     var isRedifineSheet: Bool = false
     var user: GIDGoogleUser? = nil
+    lazy var spreadsheetId = spreadsheetIdDefault
     private var userDataManager = UserDataManager()
-    
     private var isListView: Bool = true
     private var userNode = [Node]()
-    private lazy var dataToPresent = [Node]() 
+    private var dataToPresent = [Node]()
     private var userTap: Int = 0
     private var totalCountNodes: Int = 0
     private var iterateCounter: Int = 0
@@ -223,7 +221,7 @@ extension MainViewController: UICollectionViewDelegate, UICollectionViewDataSour
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return self.dataToPresent.count
     }
-
+    
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: Cell.identifier, for: indexPath) as? Cell else { return UICollectionViewCell() }
         cell.title.text = dataToPresent[indexPath.row].itemName
@@ -274,7 +272,7 @@ extension MainViewController {
                         !dataToPresent[userTap].children.isEmpty {
                         presentAlert(title: "You can't delete not empty directory", alertMessage: "", withTextField: false)
                     } else {
-                        self.presentAlertAskUserForDelete(itemToDelete: "\(dataToPresent[indexPath.row].itemName) -> \(dataToPresent[indexPath.row].range)", indexPath: indexPath)
+                        self.presentAlertAskUserForDelete(itemToDelete: "\(dataToPresent[indexPath.row].itemName)", indexPath: indexPath)
                     }
                 }
             }
@@ -288,7 +286,7 @@ extension MainViewController {
 
 extension MainViewController: UIDocumentPickerDelegate {
     
-    func presentFilePicker() {
+    private func presentFilePicker() {
         let types = [UTType.image, UTType.text, UTType.pdf, UTType.image, UTType.jpeg,    UTType.tiff, UTType.gif, UTType.png, UTType.rawImage, UTType.svg, UTType.livePhoto, UTType.movie, UTType.video, UTType.audio, UTType.quickTimeMovie, UTType.mpeg, UTType.mp3, UTType.zip, UTType.spreadsheet, UTType(filenameExtension: "pages")!, UTType(filenameExtension: "docx")!]
         let documentPickerController = UIDocumentPickerViewController(forOpeningContentTypes: types)
         documentPickerController.allowsMultipleSelection = false
@@ -400,9 +398,9 @@ extension MainViewController: UserDataManagerDelegate {
         self.presentAlert(title: "Error", alertMessage: error.localizedDescription, withTextField: false)
     }
 }
-    
-    // MARK: - Present Alerts
-    
+
+// MARK: - Present Alerts
+
 extension MainViewController {
     
     private func presentAlert(title: String, alertMessage: String, withTextField: Bool) {
