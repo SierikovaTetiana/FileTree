@@ -13,7 +13,7 @@
 - Screen can be Switched to change the layout from grid to table and vice-versa
 - Tap on a folder item reveals its contents in a new screen
 - User is able to return to parent folders and walk the hierarchy freely 
-- Each screen must contain: 
+- Each screen contain: 
   - Current folder’s title
   - Each list element contains the file name and file thumbnail (“folder” of “file” icon)
 - User can sign-in Google account to be able to edit sheet or read private sheets
